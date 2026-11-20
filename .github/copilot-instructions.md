@@ -2,19 +2,28 @@
 
 ## Repository map
 
-- `apps/web-dashboard/`: Next.js 15 App Router command center. The authority views are `PRIVATE_FRIDAY` and `PUBLIC_WORKFLOW`.
-- `apps/mobile-flutter/`: Flutter field operations application using Riverpod, GoRouter, Drift, Dio, geolocation, and Socket.IO dependencies.
-- `services/backend-gateway/src/`: NestJS 11 API and integration bridge.
+- `apps/web-dashboard/`: Next.js 15 App Router public instance. It currently provides the public project gallery and bilingual visit-request form.
+- `apps/mobile-flutter/`: Flutter 3 field-operations application using Riverpod, GoRouter, Drift, Dio, geolocation, and Socket.IO dependencies.
+- `services/backend-gateway/src/`: NestJS 11 API and integration bridge. Routes are below the global `/api` prefix.
 - `docs/database/schema.sql`: PostgreSQL/PostGIS schema and tenant-scoped spatial helpers.
 - `docker-compose.yml`: local PostGIS and Redis dependencies.
 
-Use the nearest existing package/workspace conventions. Work from the repository root unless a package-specific command requires otherwise.
+Use the nearest existing package/workspace conventions. Work from the repository root for workspace scripts and package-specific directories only for package-specific commands.
+
+## Change workflow
+
+- Read the nearest existing implementation before editing. Preserve working patterns instead of introducing parallel abstractions.
+- Make the smallest complete change in the owning workspace and update only directly related files.
+- Keep package manifests and lockfiles consistent; do not regenerate dependencies or lockfiles unless dependencies change.
+- Do not commit generated output, dependencies, secrets, environment files, or local database state. Respect `.gitignore`.
+- For a cross-workspace behavior change, update web, gateway, mobile, and SQL surfaces together when the existing contracts require it.
 
 ## Architecture and authority model
 
 - Preserve exactly these authority scopes: `PRIVATE_FRIDAY` and `PUBLIC_WORKFLOW`.
 - Treat `services/backend-gateway/src/integration.gateway.ts` as the bridge between scopes. Integration events require `sourceScope`, `destinationScope`, `tenantId`, and a payload.
-- The gateway computes the peer destination for an integration event. Do not add a cross-scope route that bypasses it.
+- The gateway computes the peer destination for an integration event. On `gateway/events`, replace an untrusted destination with the peer of `sourceScope`; do not add a cross-scope route that bypasses this bridge.
+- The public visit flow is `PUBLIC_WORKFLOW -> PRIVATE_FRIDAY`. Keep its lead fields and `B2BVisitRequested` event payload stable: `leadId`, `customerName`, `phone`, `projectId`, `message`, `location`, and `submittedAt`.
 - Keep tenant isolation explicit in SQL, API inputs, DTOs, and storage queries. Never introduce a cross-tenant read or write.
 - Use the existing enum names across connected surfaces: `authority_scope`, `ticket_status`, `ticket_priority`, and `visit_status` in SQL; corresponding string unions and payload fields in TypeScript and Dart.
 - Keep integration event names aligned unless a behavior change explicitly requires a new event: `RouteChangeRequested`, `ExceptionTriggered`, `NewProspectDiscovered`, `TicketApproved`, and `B2BVisitRequested`.
@@ -25,13 +34,14 @@ Use the nearest existing package/workspace conventions. Work from the repository
 
 - Make the smallest complete change in the owning workspace.
 - In Next.js, preserve App Router structure and strict TypeScript. Keep `"use client"` only on components that use client state or browser APIs. Reuse React state and Framer Motion patterns already in `apps/web-dashboard/app/page.tsx`.
+- Keep browser-facing form submissions behind `apps/web-dashboard/app/api/public/visit-requests/route.ts`; do not call the private gateway or private webhook directly from the browser.
 - Preserve bilingual behavior (`en`/`ar`) and RTL/LTR layout switching. Set `dir` from the selected locale and keep mirrored controls and status indicators usable on both desktop and mobile widths.
 - Reuse the existing dark, cyan, emerald, and amber tokens in `apps/web-dashboard/app/globals.css`. Preserve the `.glass`, portal, metric, map, and responsive patterns instead of introducing a separate visual system.
 - In NestJS, use `@nestjs` controllers, modules, and providers. Keep routes below the global `api` prefix. Add route handlers in `services/backend-gateway/src/app.controller.ts` and keep real-time behavior in `services/backend-gateway/src/integration.gateway.ts`.
 - Prefer existing NestJS payload interfaces and `Record<string, unknown>` payloads over untyped objects. Validate authority-scope values and tenant fields at integration boundaries.
+- Preserve environment boundaries: `GATEWAY_API_URL` configures the web-to-gateway proxy, `PUBLIC_TENANT_ID` identifies the public tenant, and `PRIVATE_INSTANCE_WEBHOOK_URL`/`PRIVATE_INSTANCE_WEBHOOK_TOKEN` deliver private-bound events.
 - In Flutter, preserve Material 3, the dark cyan/emerald theme, Riverpod providers, and accessible field labels. Keep field workflows and scope terminology consistent with the web and gateway.
 - For SQL and PostGIS changes, update `docs/database/schema.sql`. Preserve UUID defaults, tenant foreign keys, SRID 4326, geography/geometry types, and GiST indexes. Keep tenant predicates in spatial and non-spatial queries.
-- Do not commit generated output, dependencies, secrets, environment files, or local database state. Respect `.gitignore`.
 
 ## Validation
 
