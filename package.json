@@ -1,0 +1,17 @@
+{
+  "name": "friday-field-ops-ecosystem",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web-dashboard",
+    "dev:gateway": "npm run start:dev --workspace services/backend-gateway",
+    "build:web": "npm run build --workspace apps/web-dashboard",
+    "build:gateway": "npm run build --workspace services/backend-gateway"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
